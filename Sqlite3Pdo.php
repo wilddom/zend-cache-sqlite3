@@ -37,7 +37,7 @@ require_once 'Zend/Cache/Backend.php';
  * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
-class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cache_Backend_ExtendedInterface
+class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_Cache_Backend_ExtendedInterface
 {
     /**
      * Available options
@@ -180,7 +180,7 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         $sql = "INSERT INTO cache (id, content, lastModified, expire) VALUES ('$id', ?, $mktime, $expire)";
         if (!$this->_query($sql, array($data))) {
             $this->_db->rollBack();
-            $this->_log("Zend_Cache_Backend_Sqlite3::save() : impossible to store the cache id=$id");
+            $this->_log("Zend_Cache_Backend_Sqlite3Pdo::save() : impossible to store the cache id=$id");
             return false;
         }
 
