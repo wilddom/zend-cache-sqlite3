@@ -183,21 +183,27 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         } else {
             $expire = $mktime + $lifetime;
         }
+        
         $this->_query("BEGIN TRANSACTION");
+        
         $this->_query("DELETE FROM cache WHERE id=?", array($id));
+        
         $sql = "INSERT INTO cache (id, content, lastModified, expire) VALUES (?, ?, ?, ?)";
-        $res = $this->_query($sql, array($id, $data, $mktime, $expire));
-        if (!$res) {
+        if (!$this->_query($sql, array($id, $data, $mktime, $expire))) {
             $this->_query("ROLLBACK TRANSACTION");
             $this->_log("Zend_Cache_Backend_Sqlite::save() : impossible to store the cache id=$id");
             return false;
         }
-        $res = true;
+
         foreach ($tags as $tag) {
-            $res = $this->_registerTag($id, $tag) && $res;
+	        if (!$this->_registerTag($id, $tag)) {
+	        	$this->_query("ROLLBACK TRANSACTION");
+	        	return false;
+	        }
         }
+
         $this->_query("COMMIT TRANSACTION");
-        return $res;
+        return true;
     }
 
     /**
