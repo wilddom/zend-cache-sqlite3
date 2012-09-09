@@ -548,13 +548,13 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 			return $db->query($sql);
 		}
 			
-		$query = $db->prepare($sql);
-		if (!$query) {
+		$stmt = $db->prepare($sql);
+		if (!$stmt) {
 			return false;
 		}
 			
-		if($query->execute($params)) {
-			return $query;
+		if($stmt->execute($params)) {
+			return $stmt;
 		}
 		return false;
 	}

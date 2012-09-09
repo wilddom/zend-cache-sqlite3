@@ -590,8 +590,8 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
 					return $db->query($sql);
 				}
 
-				$query = $db->prepare($sql);
-				if (!$query) {
+				$stmt = $db->prepare($sql);
+				if (!$stmt) {
 					return false;
 				}
 				 
@@ -600,14 +600,14 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
 					$idx++;
 					if (is_string($v) && strpos($v, chr(0))) {
 						// binary. Bind as a blob.
-						$query->bindValue($idx, $v, SQLITE3_BLOB);
+						$stmt->bindValue($idx, $v, SQLITE3_BLOB);
 					}
 					else {
 						// The type can be correctly detected automatically
-						$query->bindValue($idx, $v);
+						$stmt->bindValue($idx, $v);
 					}
 				}
-				return $query->execute();
+				return $stmt->execute();
 			}
 			catch(ErrorException $e) {
 				if ($retry) {
