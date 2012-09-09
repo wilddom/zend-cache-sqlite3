@@ -121,6 +121,7 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 */
 	public function load($id, $doNotTestCacheValidity = false) {
 		$this->_checkAndBuildStructure();
+		
 		$sql = "SELECT content FROM cache WHERE id=?";
 		$params = array($id);
 		if (!$doNotTestCacheValidity) {
@@ -146,6 +147,7 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 */
 	public function test($id) {
 		$this->_checkAndBuildStructure();
+		
 		$sql = "SELECT lastModified FROM cache WHERE id=? AND (expire=0 OR expire>?)";
 		$res = $this->_query($sql, array($id, time()));
 		if (!$res) {
@@ -173,6 +175,7 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 */
 	public function save($data, $id, $tags = array(), $specificLifetime = false) {
 		$this->_checkAndBuildStructure();
+		
 		$lifetime = $this->getLifetime($specificLifetime);
 		$mktime = time();
 		if ($lifetime === null) {
@@ -211,6 +214,7 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 */
 	public function remove($id) {
 		$this->_checkAndBuildStructure();
+		
 		$res = $this->_query("SELECT COUNT(*) AS nbr FROM cache WHERE id=?", array($id));
 		if(!$res) {
 			return false;
@@ -275,6 +279,7 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 */
 	public function getTags() {
 		$this->_checkAndBuildStructure();
+		
 		$tags = array();
 		$res = $this->_query("SELECT DISTINCT(name) AS name FROM tag");
 		if(!$res) {
@@ -295,6 +300,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @return array array of matching cache ids (string)
 	 */
 	public function getIdsMatchingTags($tags = array()) {
+		$this->_checkAndBuildStructure();
+		
 		$ids = array();
 		
 		$selects = array();
@@ -323,6 +330,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @return array array of not matching cache ids (string)
 	 */
 	public function getIdsNotMatchingTags($tags = array()) {
+		$this->_checkAndBuildStructure();
+		
 		$ids = array();
 			
 		$selects = array();
@@ -351,6 +360,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @return array array of any matching cache ids (string)
 	 */
 	public function getIdsMatchingAnyTags($tags = array()) {
+		$this->_checkAndBuildStructure();
+		
 		$ids = array();
 			
 		$selects = array();
@@ -403,6 +414,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @return array array of metadatas (false if the cache id is not found)
 	 */
 	public function getMetadatas($id) {
+		$this->_checkAndBuildStructure();
+		
 		$tags = array();
 		$res = $this->_query("SELECT name FROM tag WHERE id=?", array($id));
 		if(!$res) {
@@ -437,6 +450,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @return boolean true if ok
 	 */
 	public function touch($id, $extraLifetime) {
+		$this->_checkAndBuildStructure();
+		
 		$res = $this->_query("SELECT expire FROM cache WHERE id=? AND (expire=0 OR expire>?)", array($id, time()));
 		if(!$res) {
 			return false;
@@ -484,6 +499,8 @@ class Zend_Cache_Backend_Sqlite3Pdo extends Zend_Cache_Backend implements Zend_C
 	 * @param string $id Cache id
 	 */
 	public function ___expire($id) {
+		$this->_checkAndBuildStructure();
+		
 		$time = time() - 1;
 		$this->_query("UPDATE cache SET lastModified=?, expire=? WHERE id=?", array($time, $time, $id));
 	}
