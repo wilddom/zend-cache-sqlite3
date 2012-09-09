@@ -89,7 +89,7 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
 	protected $_options = array(
 		'cache_db_complete_path' => null,
 		'automatic_vacuum_factor' => 10,
-		'busy_timeout' => 2000,
+		'busy_timeout' => 60000,
 		'turbo_boost' => false
 	);
 
