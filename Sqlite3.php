@@ -106,13 +106,6 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
      * @var boolean $_structureChecked
      */
     private $_structureChecked = false;
-
-    /**
-     * Boolean set when repairing after an error
-     *
-     * @var boolean $_repairing
-     */
-    private $_repairing = false;
     
     /**
      * Constructor
@@ -695,9 +688,9 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
     private function _automaticVacuum() {
         if ($this->_options['automatic_vacuum_factor'] > 0) {
             $rand = rand(1, $this->_options['automatic_vacuum_factor']);
-            //if ($rand == 1) {
+            if ($rand == 1) {
                 $this->_query('VACUUM');
-            //}
+            }
         }
     }
 
