@@ -39,6 +39,20 @@ require_once 'Zend/Cache/Backend/ExtendedInterface.php';
  */
 require_once 'Zend/Cache/Backend.php';
 
+class Zend_Cache_Backend_Sqlite3_ScopedErrorHandler {
+	public function __construct() {
+		set_error_handler(array(get_class($this), 'handleError'));
+	}
+	
+	public static function handleError($errno, $errstr, $errfile, $errline) {
+		throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+	}
+	
+	public function __destruct() {
+		restore_error_handler();
+	}
+}
+
 /**
  * @package    Zend_Cache
  * @subpackage Zend_Cache_Backend
@@ -203,7 +217,7 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         $sql = "INSERT INTO cache (id, content, lastModified, expire) VALUES (?, ?, ?, ?)";
         if (!$this->_query($sql, array($id, $data, $mktime, $expire))) {
             $this->_query("ROLLBACK TRANSACTION");
-            $this->_log("Zend_Cache_Backend_Sqlite::save() : impossible to store the cache id=$id");
+            $this->_log("Zend_Cache_Backend_Sqlite3::save() : impossible to store the cache id=$id");
             return false;
         }
 
@@ -551,49 +565,51 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
      * @return mixed|false query results
      */
     private function _query($sql, array $params = array()) {
+    	$eh = new Zend_Cache_Backend_Sqlite3_ScopedErrorHandler();
         $retry = true;
         do {
             $db = $this->_getConnection();
-            if ($db) {
-                if (count($params)) {
-                    $query = @$db->prepare($sql);
-                    if ($query) {
-                        $idx = 0;
-                        foreach ($params as $v) {
-                            $idx++;
-                            if (is_string($v) && strpos($v, chr(0))) {
-                                // binary. Bind as a blob.
-                                @$query->bindValue($idx, $v, SQLITE3_BLOB);
-                            }
-                            else {
-                                // The type can be correctly detected automatically
-                                @$query->bindValue($idx, $v);
-                            }
-                        }
-                        $res = @$query->execute();
+            if (!$db) {
+            	return false;
+            }
+            
+            try {
+            	if (count($params) == 0) {
+                	return $db->query($sql);
+                }
+
+                $query = $db->prepare($sql);
+                if (!$query) {
+                	return false;
+                }
+                	
+                $idx = 0;
+                foreach ($params as $v) {
+                	$idx++;
+                    if (is_string($v) && strpos($v, chr(0))) {
+                        // binary. Bind as a blob.
+                        $query->bindValue($idx, $v, SQLITE3_BLOB);
                     }
                     else {
-                        $res = false;
+                        // The type can be correctly detected automatically
+                        $query->bindValue($idx, $v);
                     }
                 }
-                else {
-                   	$res = @$db->query($sql);
-                }
-                if (!$res) {
-                    if ($retry) {
-                        $this->_repairCorruption();
-                        $retry = false;
-                        continue;
-                    }
-                    return false;
-                } else {
-                    return $res;
-                }
+                return $query->execute();
             }
-            return false;
+            catch(ErrorException $e) {
+            	if ($retry) {
+                	$this->_repairCorruption();
+                	$retry = false;
+                	$this->_log("Zend_Cache_Backend_Sqlite3::_query() [RETRY]: ".((string)$e), max(Zend_Log::NOTICE, self::convertErrorCode($e->getSeverity())));
+                	continue;
+                }
+                $this->_log("Zend_Cache_Backend_Sqlite3:::_query() [ABORT]: ".((string)$e), self::convertErrorCode($e->getSeverity()));
+                return false;
+            }
         } while (true);
     }
-
+    
     private function _checkIntegrity() {
     	$res = $this->_query("PRAGMA integrity_check");
     	if(!$res) {
@@ -696,7 +712,7 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         $res1 = $this->_query("DELETE FROM TAG WHERE name=? AND id=?", array($tag, $id));
         $res2 = $this->_query("INSERT INTO tag (name, id) VALUES (?, ?)", array($tag, $id));
         if (!$res1 || !$res2) {
-            $this->_log("Zend_Cache_Backend_Sqlite::_registerTag() : impossible to register tag=$tag on id=$id");
+            $this->_log("Zend_Cache_Backend_Sqlite3::_registerTag() : impossible to register tag=$tag on id=$id");
             return false;
         }
         return true;
@@ -739,7 +755,7 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         }
         if (((int) $row['num']) != 1) {
             // old cache structure
-            $this->_log('Zend_Cache_Backend_Sqlite::_checkStructureVersion() : old cache structure version detected => the cache is going to be dropped');
+            $this->_log('Zend_Cache_Backend_Sqlite3::_checkStructureVersion() : old cache structure version detected => the cache is going to be dropped');
             return false;
         }
         return true;
@@ -824,5 +840,35 @@ class Zend_Cache_Backend_Sqlite3 extends Zend_Cache_Backend implements Zend_Cach
         return true;
     }
 
+    private static function convertErrorCode($errno) {
+    	static $errorMap = null;
+    
+    	if (!is_array($errorMap)) {
+    		$errorMap = array(
+    				E_NOTICE            => Zend_Log::NOTICE,
+    				E_USER_NOTICE       => Zend_Log::NOTICE,
+    				E_WARNING           => Zend_Log::WARN,
+    				E_CORE_WARNING      => Zend_Log::WARN,
+    				E_USER_WARNING      => Zend_Log::WARN,
+    				E_ERROR             => Zend_Log::ERR,
+    				E_USER_ERROR        => Zend_Log::ERR,
+    				E_CORE_ERROR        => Zend_Log::ERR,
+    				E_RECOVERABLE_ERROR => Zend_Log::ERR,
+    				E_STRICT            => Zend_Log::DEBUG,
+    		);
+    		// PHP 5.3.0+
+    		if (defined('E_DEPRECATED')) {
+    			$errorMap['E_DEPRECATED'] = Zend_Log::DEBUG;
+    		}
+    		if (defined('E_USER_DEPRECATED')) {
+    			$errorMap['E_USER_DEPRECATED'] = Zend_Log::DEBUG;
+    		}
+    	}
+    
+    	if (!isset($errorMap[$errno])) {
+    		return Zend_Log::INFO;
+    	}
+    	return $errorMap[$errno];
+    }
 }
 
